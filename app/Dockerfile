@@ -15,7 +15,7 @@ COPY src ./src
 RUN ./gradlew bootJar
 
 # Copy built JAR file
-COPY build/libs/app-0.0.1-SNAPSHOT.jar app.jar
+COPY build/libs/*.jar app.jar
 
 # Run the app
 ENTRYPOINT ["java", "-jar", "app.jar"]
