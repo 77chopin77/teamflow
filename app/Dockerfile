@@ -1,21 +1,11 @@
-# Use OpenJDK 17
-FROM eclipse-temurin:17-jdk
-
-# Set working directory
+# Build stage
+FROM eclipse-temurin:17-jdk AS builder
 WORKDIR /app
-
-# Copy Gradle wrapper and build files
-COPY build.gradle settings.gradle gradlew gradlew.bat ./
-COPY gradle ./gradle
-
-# Copy source
-COPY src ./src
-
-# Build the Spring Boot JAR
+COPY . .
 RUN ./gradlew bootJar
 
-# Copy built JAR file
-COPY build/libs/*.jar app.jar
-
-# Run the app
+# Run stage
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+COPY --from=builder /app/build/libs/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
