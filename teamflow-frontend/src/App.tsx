@@ -22,7 +22,6 @@ function App() {
 
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // ✅ status を含むように型を拡張
   const [newTask, setNewTask] = useState<Omit<Task, "id">>({
     title: "",
     description: "",
@@ -33,66 +32,61 @@ function App() {
   });
 
   const handleEditTask = async (taskId: number, updatedFields: Partial<Task>) => {
-  try {
-    const taskToUpdate = tasks.find((t) => t.id === taskId);
-    if (!taskToUpdate) return;
+    try {
+      const taskToUpdate = tasks.find((t) => t.id === taskId);
+      if (!taskToUpdate) return;
 
-    const updatedTask = { ...taskToUpdate, ...updatedFields };
+      const updatedTask = { ...taskToUpdate, ...updatedFields };
 
-    const res = await fetch(`http://localhost:8080/api/tasks/${taskId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedTask),
-    });
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedTask),
+      });
 
-    if (!res.ok) throw new Error("更新に失敗しました");
+      if (!res.ok) throw new Error("更新に失敗しました");
 
-    const saved = await res.json();
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? saved : t)));
-  } catch (error) {
-    console.error("編集エラー:", error);
-  }
-};
+      const saved = await res.json();
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? saved : t)));
+    } catch (error) {
+      console.error("編集エラー:", error);
+    }
+  };
 
+  const handleDeleteTask = async (taskId: number) => {
+    if (!window.confirm("本当に削除しますか？")) return;
 
-const handleDeleteTask = async (taskId: number) => {
-  if (!window.confirm("本当に削除しますか？")) return;
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
+      });
 
-  try {
-    const res = await fetch(`http://localhost:8080/api/tasks/${taskId}`, {
-      method: "DELETE",
-    });
+      if (!res.ok) throw new Error("削除に失敗しました");
 
-    if (!res.ok) throw new Error("削除に失敗しました");
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch (error) {
+      console.error("削除エラー:", error);
+    }
+  };
 
-    // 成功したらローカルのstateからも削除
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-  } catch (error) {
-    console.error("削除エラー:", error);
-  }
-};
-
-  // 🔹 初期データ取得
   useEffect(() => {
-    fetch("http://localhost:8080/api/tasks")
+    fetch("/api/tasks")
       .then((res) => res.json())
       .then((data) => setTasks(data))
       .catch(() => console.log("バックエンド未接続の可能性"));
   }, []);
 
-  // 🔹 入力フォーム変更
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setNewTask((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 🔹 新しいタスクを追加
   const handleAddTask = async (e: FormEvent) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
 
     try {
-      const res = await fetch("http://localhost:8080/api/tasks", {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newTask),
@@ -113,57 +107,46 @@ const handleDeleteTask = async (taskId: number) => {
     });
   };
 
-  // 🔹 ドラッグ＆ドロップ処理
-const onDragEnd = async (result: DropResult) => {
-  const { destination, source, draggableId } = result;
-  if (!destination) return;
+  const onDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+    if (!destination) return;
 
-  // 同じ列にドロップした場合は何もしない
-  if (
-    destination.droppableId === source.droppableId &&
-    destination.index === source.index
-  ) {
-    return;
-  }
-
-  // 移動対象のタスクを特定
-  const draggedTask = tasks.find((t) => String(t.id) === draggableId);
-  if (!draggedTask) return;
-
-  const newStatus = destination.droppableId;
-  const updatedTask = { ...draggedTask, status: newStatus };
-
-  // 🔹 フロント側の即時反映
-  setTasks((prev) => {
-    // まず移動元のステータス列から削除
-    const newTasks = prev.filter((t) => t.id !== draggedTask.id);
-
-    // 新しい位置に挿入
-    newTasks.splice(destination.index, 0, updatedTask);
-
-    return newTasks;
-  });
-
-  // 🔹 バックエンド反映
-  try {
-    const res = await fetch(`http://localhost:8080/api/tasks/${draggedTask.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedTask),
-    });
-
-    if (!res.ok) {
-      throw new Error(`サーバー更新失敗: ${res.status}`);
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
     }
 
-    console.log(`✅ タスク ${draggedTask.id} を ${newStatus} に更新`);
-  } catch (err) {
-    console.error("更新エラー:", err);
-  }
-};
+    const draggedTask = tasks.find((t) => String(t.id) === draggableId);
+    if (!draggedTask) return;
 
+    const newStatus = destination.droppableId;
+    const updatedTask = { ...draggedTask, status: newStatus };
 
-  // 🔹 ステータス変更セレクト
+    setTasks((prev) => {
+      const newTasks = prev.filter((t) => t.id !== draggedTask.id);
+      newTasks.splice(destination.index, 0, updatedTask);
+      return newTasks;
+    });
+
+    try {
+      const res = await fetch(`/api/tasks/${draggedTask.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedTask),
+      });
+
+      if (!res.ok) {
+        throw new Error(`サーバー更新失敗: ${res.status}`);
+      }
+
+      console.log(`✅ タスク ${draggedTask.id} を ${newStatus} に更新`);
+    } catch (err) {
+      console.error("更新エラー:", err);
+    }
+  };
+
   const handleStatusChange = async (task: Task, newStatus: string) => {
     const updatedTask = { ...task, status: newStatus };
     setTasks((prev) =>
@@ -171,7 +154,7 @@ const onDragEnd = async (result: DropResult) => {
     );
 
     try {
-      await fetch(`http://localhost:8080/api/tasks/${task.id}`, {
+      await fetch(`/api/tasks/${task.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedTask),
@@ -185,7 +168,6 @@ const onDragEnd = async (result: DropResult) => {
     <div className="App">
       <h1>TeamFlow</h1>
 
-      {/* 🔹 新規タスク追加フォーム */}
       <form className="task-form" onSubmit={handleAddTask}>
         <input
           type="text"
@@ -222,7 +204,6 @@ const onDragEnd = async (result: DropResult) => {
           onChange={handleInputChange}
         />
 
-        {/* ✅ 状態を選べるように */}
         <select
           name="status"
           value={newTask.status}
@@ -236,7 +217,6 @@ const onDragEnd = async (result: DropResult) => {
         <button type="submit">追加</button>
       </form>
 
-      {/* 🔹 カンバンボード */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="kanban-board">
           {statuses.map((status) => (
@@ -278,7 +258,6 @@ const onDragEnd = async (result: DropResult) => {
                               ))}
                             </select>
 
-                            {/* ✏️ 編集ボタン */}
                             <button
                               onClick={() =>
                                 handleEditTask(task.id, {
@@ -289,10 +268,8 @@ const onDragEnd = async (result: DropResult) => {
                               編集
                             </button>
 
-                            {/* 🗑 削除ボタン */}
                             <button onClick={() => handleDeleteTask(task.id)}>削除</button>
                           </div>
-
                         )}
                       </Draggable>
                     ))}
