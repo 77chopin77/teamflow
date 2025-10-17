@@ -5,8 +5,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
-@CrossOrigin(origins = "http://localhost:5173") 
-@RestController // ユーザーからの入力を受け取るところ(Controller)
+@CrossOrigin(origins = {
+    "https://teamflow-1.onrender.com",  // Render本番用
+    "http://localhost:5173"             // 開発用
+})
+@RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
     private final TaskService service;
@@ -20,7 +23,6 @@ public class TaskController {
         return service.findAll();
     }
 
-    // PathVariableでteamName変数にアクセス
     @GetMapping("/team/{teamName}")
     public List<Task> getTasksByTeam(@PathVariable String teamName) {
         return service.findByTeamName(teamName);
